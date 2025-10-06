@@ -1,8 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"ride-sharing/services/api-gateway/grpc_clients"
 	"ride-sharing/shared/contracts"
@@ -22,36 +22,22 @@ func handleTripPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reqEncoded, err := json.Marshal(reqBody)
-	if err != nil {
-		http.Error(w, "failed to marshal request", http.StatusBadRequest)
-		return
-	}
-
 	tripService, err := grpc_clients.NewTripServiceClient()
 	if err != nil {
+		log.Printf("failed to establish grpc connection with trip service: %v", err)
 		http.Error(w, "failed to establish grpc connection with trip service", http.StatusInternalServerError)
 		return
 	}
 	defer tripService.Close()
 
-	// tripService.Client.PreviewTrip(r.Context(), )
-
-	resp, err := http.Post("http://trip-service:8083/preview", "application/json", bytes.NewReader(reqEncoded))
+	tripPreview, err := tripService.Client.PreviewTrip(r.Context(), reqBody.toProto())
 	if err != nil {
-		http.Error(w, "failed to post to trip service", http.StatusInternalServerError)
+		log.Printf("Failed to preview a trip: %v", err)
+		http.Error(w, "Failed getting preview trip", http.StatusInternalServerError)
 		return
 	}
 
-	defer resp.Body.Close()
-
-	var respBody any
-	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		http.Error(w, "failed to parse JSON data from trip service", http.StatusBadRequest)
-		return
-	}
-
-	response := contracts.APIResponse{Data: respBody}
+	response := contracts.APIResponse{Data: tripPreview}
 
 	writeJSON(w, http.StatusCreated, response)
 }
