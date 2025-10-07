@@ -5,6 +5,7 @@ option go_package = "shared/proto/trip;trip";
 
 service TripService {
     rpc PreviewTrip(PreviewTripRequest) returns (PreviewTripResponse);
+    rpc CreateTrip(CreateTripRequest) returns (CreateTripResponse);
 }
 
 message PreviewTripRequest {
@@ -19,21 +20,31 @@ message PreviewTripResponse {
     repeated RideFare rideFares = 3;
 }
 
-message Coordinate {
-    double latitude = 1;
-    double longitude = 2;
-}
 message Route {
     repeated Geometry geometry =1;
     double distance = 2;
     double duration = 3;
 }
+message Coordinate {
+    double latitude = 1;
+    double longitude = 2;
+}
+message Geometry {
+    repeated Coordinate coordinates = 1;
+}
+
 message RideFare {
     string id = 1;
     string userID = 2;
     string packageSlug = 3;
     double totalPriceInCents = 4;
 }
-message Geometry {
-    repeated Coordinate coordinates = 1;
+
+message CreateTripRequest {
+    string rideFareID = 1;
+    string userID = 2;
+}
+
+message CreateTripResponse {
+    string tripID = 1;
 }
