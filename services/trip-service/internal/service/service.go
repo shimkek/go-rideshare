@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"ride-sharing/services/trip-service/internal/domain"
+	"ride-sharing/shared/proto/trip"
 	"ride-sharing/shared/types"
 
 	tripTypes "ride-sharing/services/trip-service/pkg/types"
@@ -28,6 +29,7 @@ func (s *service) CreateTrip(ctx context.Context, fare *domain.RideFareModel) (*
 		UserID:   fare.UserID,
 		Status:   "pending",
 		RideFare: fare,
+		Driver:   &trip.Driver{},
 	}
 	return s.repo.CreateTrip(ctx, trip)
 }
@@ -74,11 +76,12 @@ func (s *service) EstimatePackagePriceWithRoute(route *tripTypes.OsrmApiResponse
 
 	return estimatedFares
 }
-func (s *service) GenerateTripFares(ctx context.Context, fares []*domain.RideFareModel, userID string) ([]*domain.RideFareModel, error) {
+func (s *service) GenerateTripFares(ctx context.Context, route *tripTypes.OsrmApiResponse, fares []*domain.RideFareModel, userID string) ([]*domain.RideFareModel, error) {
 	commitedFares := make([]*domain.RideFareModel, len(fares))
 	for i, f := range fares {
 		f.UserID = userID
 		f.ID = primitive.NewObjectID()
+		f.Route = route
 
 		if err := s.repo.SaveRideFare(ctx, f); err != nil {
 			return nil, fmt.Errorf("failed to save trip fare: %s", err)
@@ -108,4 +111,16 @@ func getBaseFares() []*domain.RideFareModel {
 			TotalPriceInCents: 1000,
 		},
 	}
+}
+
+func (s *service) GetAndValidateFare(ctx context.Context, fareID, userID string) (*domain.RideFareModel, error) {
+	fare, err := s.repo.GetRideFareByID(ctx, fareID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trip fare: %w", err)
+	}
+
+	if userID != fare.UserID {
+		return nil, fmt.Errorf("the user is not the owner of the fare")
+	}
+	return fare, nil
 }
